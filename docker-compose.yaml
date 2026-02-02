@@ -34,7 +34,7 @@ services:
 
   nginx:
     build:
-      context: ./docker/nginx
+      context: ./nginx
     container_name: topdeck-nginx
     restart: always
     ports:
