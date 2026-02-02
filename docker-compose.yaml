@@ -10,6 +10,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  # -----------------------
+  # Backend (FastAPI)
+  # -----------------------
   backend:
     build:
       context: ../top-decked-backend
@@ -17,31 +20,33 @@ services:
     container_name: topdeck-backend
     restart: always
     env_file:
-      - ./.env
+      - .env
     depends_on:
       - db
+    expose:
+      - "8000"
+    networks:
+      - internal
 
+  # -----------------------
+  # Frontend + Nginx
+  # -----------------------
   frontend:
     build:
       context: ../top-decked-frontend
       dockerfile: docker/Dockerfile
     container_name: topdeck-frontend
     restart: always
-    env_file:
-      - ./.env
-    depends_on:
-      - backend
-
-  nginx:
-    build:
-      context: ./nginx
-    container_name: topdeck-nginx
-    restart: always
     ports:
       - "80:80"
     depends_on:
-      - frontend
       - backend
+    networks:
+      - internal
 
 volumes:
   postgres_data:
+
+networks:
+  internal:
+    driver: bridge
