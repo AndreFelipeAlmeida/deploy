@@ -1,44 +1,92 @@
+version: "3.9"
+
 services:
+  # -----------------------
+  # PostgreSQL
+  # -----------------------
   db:
     image: postgres:latest
     container_name: postgres
-    restart: always
+    restart: unless-stopped
+
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - topdeck
+
 
   # -----------------------
-  # Backend (FastAPI)
+  # Backend
   # -----------------------
   backend:
     build:
       context: ../top-decked-backend
       dockerfile: docker/Dockerfile
+
     container_name: topdeck-backend
-    restart: always
+
+    restart: unless-stopped
+
     env_file:
       - .env
-    depends_on:
-      - db
+
     expose:
       - "8000"
 
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - topdeck
+
+
   # -----------------------
-  # Frontend + Nginx
+  # Frontend (Nginx)
   # -----------------------
   frontend:
     build:
       context: ../top-decked-frontend
       dockerfile: docker/Dockerfile
+
     container_name: topdeck-frontend
-    restart: always
-    ports:
-      - "80:80"
+
+    restart: unless-stopped
+
     depends_on:
       - backend
 
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    networks:
+      - topdeck
+
 volumes:
   postgres_data:
+
+networks:
+  topdeck:
+    driver: bridge
